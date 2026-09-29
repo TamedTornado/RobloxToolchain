@@ -45,6 +45,18 @@ pub struct Node {
     pub assets: BTreeMap<String, AssetReference>,
     pub material: Option<AssetReference>,
     pub rig: Option<AssetReference>,
+    pub include: Option<Include>,
+}
+
+/// Children copied from a prebuilt native model or place, such as a Rojo build.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Include {
+    /// Binary RBXM/RBXL file under the scene source directory.
+    pub file: PathBuf,
+    /// Instance names from the file's root to the instance whose children are
+    /// copied. Empty selects the file's root instances.
+    pub path: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -265,7 +277,7 @@ fn insert(
             let Variant::String(source) = value else {
                 return Err("script Source must be a string".into());
             };
-            validate_script(source, node, compiler)?;
+            validate_script(source, &node.class, &node.id, compiler)?;
         }
         builder = builder.with_property(name.as_str(), value.clone());
     }
@@ -304,37 +316,184 @@ fn insert(
                 "scriptSource requires a script class without an inline Source property".into(),
             );
         }
-        let path = root.join(source).canonicalize()?;
-        if source.is_absolute() || !path.starts_with(root) {
-            return Err("scriptSource must remain under the scene source directory".into());
-        }
+        let path = contained(root, source).map_err(|e| {
+            format!("scriptSource must remain under the scene source directory: {e}")
+        })?;
         let source = fs::read_to_string(path)?;
-        validate_script(&source, node, compiler)?;
+        validate_script(&source, &node.class, &node.id, compiler)?;
         builder = builder.with_property("Source", source);
     }
     let reference = dom.insert(parent, builder);
     ids.insert(node.id.clone(), reference);
+    if let Some(include) = &node.include {
+        insert_included(dom, reference, include, root, compiler)?;
+    }
     for child in &node.children {
         insert(dom, reference, child, root, ids, compiler, assets)?;
     }
     Ok(())
 }
 
+fn is_script(class: &str) -> bool {
+    matches!(class, "Script" | "LocalScript" | "ModuleScript")
+}
+
 fn validate_script(
     source: &str,
-    node: &Node,
+    class: &str,
+    label: &str,
     compiler: Option<&crate::scripts::Config>,
 ) -> Result<()> {
-    if !matches!(
-        node.class.as_str(),
-        "Script" | "LocalScript" | "ModuleScript"
-    ) {
+    if !is_script(class) {
         return Err("Source requires a supported script class".into());
     }
     let compiler = compiler
         .ok_or("scene containing script source requires explicit scriptCompiler configuration")?;
     crate::scripts::compile(source, compiler)
-        .map_err(|e| format!("script {} failed compilation: {e}", node.id))?;
+        .map_err(|e| format!("script {label} failed compilation: {e}"))?;
+    Ok(())
+}
+
+/// Resolve a scene-relative input file that must stay under the scene directory.
+pub(crate) fn contained(root: &Path, relative: &Path) -> Result<PathBuf> {
+    let path = root.join(relative).canonicalize()?;
+    if relative.is_absolute() || !path.starts_with(root) || !path.is_file() {
+        return Err(format!(
+            "{} is not a regular file under the scene source directory",
+            relative.display()
+        )
+        .into());
+    }
+    Ok(path)
+}
+
+fn insert_included(
+    dom: &mut WeakDom,
+    parent: Ref,
+    include: &Include,
+    root: &Path,
+    compiler: Option<&crate::scripts::Config>,
+) -> Result<()> {
+    let label = include.file.display().to_string();
+    let path = contained(root, &include.file).map_err(|e| format!("include {label}: {e}"))?;
+    let native = rbx_binary::from_reader(fs::File::open(&path)?)
+        .map_err(|e| format!("include {label} is not a binary model or place: {e}"))?;
+    let mut selected = native.root_ref();
+    for name in &include.path {
+        let parent = native
+            .get_by_ref(selected)
+            .ok_or("include selection vanished")?;
+        let matches: Vec<Ref> = parent
+            .children()
+            .iter()
+            .copied()
+            .filter(|child| native.get_by_ref(*child).is_some_and(|i| i.name == *name))
+            .collect();
+        selected = match matches.as_slice() {
+            [only] => *only,
+            [] => {
+                return Err(
+                    format!("include {label} has no instance at path segment {name}").into(),
+                );
+            }
+            _ => {
+                return Err(format!("include {label} path segment {name} is ambiguous").into());
+            }
+        };
+    }
+    let sources = native
+        .get_by_ref(selected)
+        .ok_or("include selection vanished")?
+        .children()
+        .to_vec();
+    if sources.is_empty() {
+        return Err(format!("include {label} selects no instances").into());
+    }
+    let mut copied = HashMap::new();
+    for source in sources {
+        copy_included(&native, source, dom, parent, &label, compiler, &mut copied)?;
+    }
+    // Instance references are remapped after every copied instance exists.
+    for (&old, &new) in &copied {
+        let instance = native.get_by_ref(old).ok_or("included instance vanished")?;
+        for (name, value) in &instance.properties {
+            let Variant::Ref(target) = value else {
+                continue;
+            };
+            let mapped = if target.is_none() {
+                Ref::none()
+            } else {
+                *copied.get(target).ok_or_else(|| {
+                    format!(
+                        "include {label}: {}.{name} references an instance outside the included tree",
+                        instance.name
+                    )
+                })?
+            };
+            dom.get_by_ref_mut(new)
+                .ok_or("copied instance vanished")?
+                .properties
+                .insert(*name, Variant::Ref(mapped));
+        }
+    }
+    Ok(())
+}
+
+fn copy_included(
+    native: &WeakDom,
+    source: Ref,
+    dom: &mut WeakDom,
+    parent: Ref,
+    label: &str,
+    compiler: Option<&crate::scripts::Config>,
+    copied: &mut HashMap<Ref, Ref>,
+) -> Result<()> {
+    let instance = native
+        .get_by_ref(source)
+        .ok_or("included instance vanished")?;
+    let class = instance.class.as_str();
+    if class == "DataModel" {
+        return Err(format!("include {label} cannot copy a DataModel").into());
+    }
+    if !rbx_reflection_database::get_bundled()
+        .classes
+        .contains_key(class)
+    {
+        return Err(format!("include {label} contains unknown class {class}").into());
+    }
+    if is_script(class) {
+        match instance.properties.get(&"Source".into()) {
+            Some(Variant::String(text)) => validate_script(
+                text,
+                class,
+                &format!("{} in include {label}", instance.name),
+                compiler,
+            )?,
+            None => {}
+            Some(other) => {
+                return Err(format!(
+                    "include {label}: {} Source has unexpected type {:?}",
+                    instance.name,
+                    other.ty()
+                )
+                .into());
+            }
+        }
+    }
+    let builder = InstanceBuilder::new(class)
+        .with_name(&instance.name)
+        .with_properties(
+            instance
+                .properties
+                .iter()
+                .filter(|(_, value)| !matches!(value, Variant::Ref(_)))
+                .map(|(name, value)| (*name, value.clone())),
+        );
+    let reference = dom.insert(parent, builder);
+    copied.insert(source, reference);
+    for &child in instance.children() {
+        copy_included(native, child, dom, reference, label, compiler, copied)?;
+    }
     Ok(())
 }
 

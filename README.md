@@ -57,7 +57,8 @@ it is neither authenticity verification nor an engine-acceptance test.
 - [Terrain](docs/terrain-format.md): configured sparse voxels or heightmaps to
   native SmoothGrid, with optional native lazy physics indexes.
 - [Scenes](docs/scene-assembly.md): explicit hierarchy, properties, scripts and
-  asset bindings assembled into native models/places. Automatic scene authoring
+  asset bindings assembled into native models/places, optionally including
+  prebuilt native trees such as Rojo output. Automatic scene authoring
   from arbitrary source geometry is not implemented.
 - [Luau](docs/luau-compilation.md): local compilation without executing scripts;
   source packaging is distinguished from publishable bytecode.

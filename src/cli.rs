@@ -515,6 +515,7 @@ fn execute(cli: Cli) -> Result<Value> {
             "assetDocument":"offlineBuildPlan",
             "localLuauCompilation":true,
             "offlineSceneSerialization":true,
+            "sceneNativeInclude":true,
             "offlineAssetBundleBuild":true,
             "offlineConversion":[
                 "static-gltf-to-mesh-v2","static-fbx-to-mesh-v2","static-obj-to-mesh-v2",

@@ -1,0 +1,12 @@
+{
+  "name": "IncludeFixture",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" }
+    }
+  }
+}

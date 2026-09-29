@@ -30,6 +30,41 @@ Each source is compiled locally as a validation gate, then the original text is
 packed into the native Source property. Source is never executed. This is syntax
 and compilation validation, not whole-project type checking or runtime testing.
 
+## Including prebuilt native trees
+
+A node may copy the children of an instance in a prebuilt binary RBXM/RBXL, such
+as the output of a separate `rojo build`. This keeps Luau project layout, live
+sync and luau-lsp sourcemaps in Rojo while this toolchain still converts assets,
+assembles the place and prepares deployment. The toolchain never runs Rojo; the
+project's own build script runs `rojo build` first.
+
+```json
+{"id":"server","class":"ServerScriptService","name":"ServerScriptService",
+ "properties":{},"references":{},"children":[],
+ "include":{"file":"build/code.rbxl","path":["ServerScriptService"]}}
+```
+
+`file` follows the same containment rule as `scriptSource`. `path` names instances
+from the file's root to the instance whose children are copied; each segment
+must match exactly one child, and an empty path copies the file's root instances.
+An empty selection, a DataModel, or a class unknown to the bundled reflection
+database fails. Included instances are placed under the node, before its explicit
+children, with their native properties unchanged. Instance references inside the
+copied tree are remapped; a reference to anything outside it fails rather than
+being dropped. Included scripts go through the same mandatory compilation gate,
+so a scene with an include that contains script Source needs `scriptCompiler`.
+Included instances have no scene ids, so explicit scene references cannot target
+them. Bundle source inventories record the included file for change detection
+and cache invalidation.
+
+The fixture under `tests/fixtures/rojo-include` is real Rojo 7.7.0 output. Tests
+cover service-level inclusion with repeatable bytes, reference remapping, and
+rejection of escapes, non-native files, missing/ambiguous/empty selections,
+unknown fields, uncompiled and invalid scripts. This is native serialization
+evidence, not a live Studio acceptance test of the included scripts.
+
+## Serialization
+
 This uses the MIT rbx-dom/rbx_binary libraries, not a Rojo subprocess. Repeated
 builds are tested for identical bytes, followed by native deserialization checks
 on hierarchy, properties, scripts and references. The schema is general, with no

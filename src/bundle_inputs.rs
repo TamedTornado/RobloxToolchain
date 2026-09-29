@@ -124,6 +124,9 @@ fn scripts(
         if let Some(source) = &node.script_source {
             record(root, &local(parent, source)?, files)?;
         }
+        if let Some(include) = &node.include {
+            record(root, &local(parent, &include.file)?, files)?;
+        }
         scripts(root, parent, &node.children, files)?;
     }
     Ok(())
@@ -307,6 +310,7 @@ mod tests {
             "video.webm",
             "audio.ogg",
             "code.luau",
+            "tree.rbxl",
             "unrelated",
         ] {
             fs::write(root.join(name), name).unwrap();
@@ -326,7 +330,8 @@ mod tests {
             root,
             "scene.json",
             json!({"kind":"model","roots":[{
-                "id":"root","name":"root","class":"Folder","properties":{},"references":{},"children":[{
+                "id":"root","name":"root","class":"Folder","properties":{},"references":{},
+                "include":{"file":"tree.rbxl","path":[]},"children":[{
                     "id":"code","name":"code","class":"ModuleScript","properties":{},"references":{},"children":[],"scriptSource":"code.luau"
                 }]
             }]}),
@@ -340,13 +345,15 @@ mod tests {
         let before = collect(&source, &plan).unwrap();
         assert_eq!(before.assets["material"].len(), 2);
         assert_eq!(before.assets["media"].len(), 3);
-        assert_eq!(before.scenes["scene"].len(), 2);
+        assert_eq!(before.scenes["scene"].len(), 3);
         fs::write(root.join("unrelated"), b"unrelated change").unwrap();
         assert_eq!(before, collect(&source, &plan).unwrap());
         fs::write(root.join("code.luau"), b"return 42").unwrap();
         let after = collect(&source, &plan).unwrap();
         assert_eq!(before.assets, after.assets);
         assert_ne!(before.scenes, after.scenes);
+        fs::write(root.join("tree.rbxl"), b"rebuilt tree").unwrap();
+        assert_ne!(after.scenes, collect(&source, &plan).unwrap().scenes);
         fs::remove_file(root.join("audio.ogg")).unwrap();
         assert!(collect(&source, &plan).is_err());
     }
