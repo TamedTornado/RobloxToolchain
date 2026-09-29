@@ -1,4 +1,4 @@
-use roblox_asset_link::scripts::{Config, compile, compile_file};
+use roblox_toolchain::scripts::{Config, compile, compile_file};
 use std::fs;
 
 fn config() -> Config {

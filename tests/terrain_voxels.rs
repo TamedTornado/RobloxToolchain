@@ -1,4 +1,4 @@
-use roblox_asset_link::{
+use roblox_toolchain::{
     terrain_grid,
     terrain_voxels::{self, Config, Voxel},
 };

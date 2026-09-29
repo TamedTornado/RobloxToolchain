@@ -1,4 +1,4 @@
-use roblox_asset_link::scene::build;
+use roblox_toolchain::scene::build;
 use serde_json::json;
 use std::fs;
 

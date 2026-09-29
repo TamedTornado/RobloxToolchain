@@ -1,5 +1,5 @@
 use rbx_dom_weak::types::{CFrame, Matrix3, Variant, Vector3};
-use roblox_asset_link::{
+use roblox_toolchain::{
     animation::{Rig, RigBinding},
     animation_gltf, bundle,
 };
@@ -109,7 +109,7 @@ fn animation_binding_rejects_wrong_names_counts_parents_assets_and_tolerance() {
 
 #[test]
 fn fbx_rig_metadata_reaches_scene_validation_and_wrong_reparenting_fails() {
-    use roblox_asset_link::animation_fbx;
+    use roblox_toolchain::animation_fbx;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path();
     let source = Path::new("tests/fixtures/maya-wiggle.fbx");
@@ -178,14 +178,14 @@ fn fbx_rig_metadata_reaches_scene_validation_and_wrong_reparenting_fails() {
         .unwrap()
         .element
         .typed_id as usize;
-    let skin_config = roblox_asset_link::skin_import::Config {
+    let skin_config = roblox_toolchain::skin_import::Config {
         mesh_node,
         metres_per_stud: 0.28,
         cull_distance_metres: 30.,
         rigid_tolerance: 0.0001,
     };
     let skin =
-        roblox_asset_link::skin_import::convert(source, &root.join("skin-reference"), &skin_config)
+        roblox_toolchain::skin_import::convert(source, &root.join("skin-reference"), &skin_config)
             .unwrap();
     let mut bound_plan = plan.clone();
     bound_plan["assets"][0]["conversion"]["bindTo"] = "skin".into();

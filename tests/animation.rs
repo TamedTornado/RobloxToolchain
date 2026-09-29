@@ -1,5 +1,5 @@
 use rbx_dom_weak::types::{CFrame, Variant};
-use roblox_asset_link::animation::{Clip, Frame, Marker, Pose, encode};
+use roblox_toolchain::animation::{Clip, Frame, Marker, Pose, encode};
 
 fn clip() -> Clip {
     Clip {
@@ -115,9 +115,9 @@ fn invalid_animation_never_creates_an_output() {
     invalid.priority = "not-an-animation-priority".into();
     std::fs::write(&source, serde_json::to_vec(&invalid).unwrap()).unwrap();
 
-    assert!(roblox_asset_link::animation::convert(&source, &output).is_err());
+    assert!(roblox_toolchain::animation::convert(&source, &output).is_err());
     assert!(!output.exists());
-    assert!(roblox_asset_link::animation::convert(&source, &output.with_extension("glb")).is_err());
+    assert!(roblox_toolchain::animation::convert(&source, &output.with_extension("glb")).is_err());
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
 }
 
@@ -142,7 +142,7 @@ fn bundle_links_animation_and_rolls_back_invalid_clips() {
     std::fs::write(&source, serde_json::to_vec(&plan).unwrap()).unwrap();
 
     let output = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&source, &output).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&source, &output).unwrap();
     assert_eq!(manifest.files.len(), 1);
     let artifact = &manifest.files[0];
     assert_eq!(
@@ -160,7 +160,7 @@ fn bundle_links_animation_and_rolls_back_invalid_clips() {
     );
 
     let second = root.join("second");
-    let repeated = roblox_asset_link::bundle::build(&source, &second).unwrap();
+    let repeated = roblox_toolchain::bundle::build(&source, &second).unwrap();
     assert_eq!(
         serde_json::to_vec(&manifest).unwrap(),
         serde_json::to_vec(&repeated).unwrap()
@@ -168,7 +168,7 @@ fn bundle_links_animation_and_rolls_back_invalid_clips() {
 
     std::fs::write(root.join("clip.json"), b"invalid").unwrap();
     let failed = root.join("failed");
-    assert!(roblox_asset_link::bundle::build(&source, &failed).is_err());
+    assert!(roblox_toolchain::bundle::build(&source, &failed).is_err());
     assert!(!failed.exists());
     assert!(output.exists());
 }

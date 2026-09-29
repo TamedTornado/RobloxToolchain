@@ -1,4 +1,4 @@
-use roblox_asset_link::skin_import::{self, Config};
+use roblox_toolchain::skin_import::{self, Config};
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
@@ -305,7 +305,7 @@ fn skin_cli_and_bundle_use_the_same_local_native_output() {
     let plan_path = root.join("build.json");
     fs::write(&plan_path, serde_json::to_vec(&plan).unwrap()).unwrap();
     let bundle = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&plan_path, &bundle).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&plan_path, &bundle).unwrap();
     assert_eq!(
         fs::read(output.join("node-2-primitive-0.mesh")).unwrap(),
         fs::read(bundle.join(&manifest.files[0].path)).unwrap()

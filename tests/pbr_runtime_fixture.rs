@@ -1,5 +1,5 @@
 use rbx_dom_weak::types::Variant;
-use roblox_asset_link::scripts;
+use roblox_toolchain::scripts;
 
 const PLACE: &[u8] = include_bytes!("fixtures/pbr-runtime/published-v8.rbxl");
 

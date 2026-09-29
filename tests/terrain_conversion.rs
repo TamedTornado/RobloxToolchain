@@ -1,4 +1,4 @@
-use roblox_asset_link::{bundle, terrain};
+use roblox_toolchain::{bundle, terrain};
 use serde_json::{Value, json};
 use std::{fs, path::Path, process::Command};
 
@@ -109,13 +109,13 @@ fn heightmap_bundle_embeds_native_grid_and_tracks_image_changes() {
         physics_bytes,
         fs::read(standalone.join(converted.physics_file.unwrap())).unwrap()
     );
-    let decoded = roblox_asset_link::terrain_physics::decode(
+    let decoded = roblox_toolchain::terrain_physics::decode(
         physics_bytes,
-        &roblox_asset_link::terrain_physics::Limits { max_entries: 64 },
+        &roblox_toolchain::terrain_physics::Limits { max_entries: 64 },
     )
     .unwrap();
     assert!(!decoded.coordinate_groups[0].is_empty());
-    roblox_asset_link::bundle_verify::verify(&first).unwrap();
+    roblox_toolchain::bundle_verify::verify(&first).unwrap();
     let second = root.join("second");
     bundle::build(&build, &second).unwrap();
     if cfg!(target_os = "linux") {

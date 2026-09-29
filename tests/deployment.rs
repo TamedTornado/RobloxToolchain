@@ -1,6 +1,6 @@
 use rbx_dom_weak::InstanceBuilder;
 use rbx_dom_weak::types::Variant;
-use roblox_asset_link::{
+use roblox_toolchain::{
     bundle, bundle_verify,
     deployment::{self, Binding, Mapping},
 };

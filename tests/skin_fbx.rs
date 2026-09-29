@@ -1,5 +1,5 @@
 use glam::{Mat4, Vec3};
-use roblox_asset_link::skin_import::{self, Config};
+use roblox_toolchain::skin_import::{self, Config};
 use std::{fs, path::Path};
 
 fn matrix(value: &ufbx::Matrix) -> Mat4 {

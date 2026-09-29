@@ -1,5 +1,5 @@
 use rbx_dom_weak::types::{CFrame, Matrix3, Variant, Vector3};
-use roblox_asset_link::{bundle, scene, skin_import};
+use roblox_toolchain::{bundle, scene, skin_import};
 use serde_json::json;
 use std::{fs, path::Path};
 
@@ -212,7 +212,7 @@ fn matrix(c: CFrame) -> glam::Mat4 {
 }
 
 fn verify_rebased_motion(root: &Path, built: &bundle::Manifest) {
-    use roblox_asset_link::animation_gltf;
+    use roblox_toolchain::animation_gltf;
     let source = root.join("source.glb");
     let config = animation_gltf::Config {
         animation_index: 0,

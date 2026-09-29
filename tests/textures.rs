@@ -1,5 +1,5 @@
 use image::{Rgba, RgbaImage};
-use roblox_asset_link::texture::{Config, Operation, convert};
+use roblox_toolchain::texture::{Config, Operation, convert};
 use std::{fs, process::Command};
 
 fn config(operation: Operation) -> Config {
@@ -8,7 +8,7 @@ fn config(operation: Operation) -> Config {
         max_width: 2,
         max_height: 2,
         max_decoded_bytes: 4096,
-        output: roblox_asset_link::texture::Output::Png,
+        output: roblox_toolchain::texture::Output::Png,
     }
 }
 
@@ -76,7 +76,7 @@ fn bc4_scalar_blocks_decode_independently_with_bounded_loss_and_full_mips() {
     let mut policy = config(Operation::Roughness);
     policy.max_width = 5;
     policy.max_height = 3;
-    policy.output = roblox_asset_link::texture::Output::DdsBc4 {
+    policy.output = roblox_toolchain::texture::Output::DdsBc4 {
         mipmaps: true,
         max_output_bytes: 160,
     };
@@ -112,7 +112,7 @@ fn bc4_scalar_blocks_decode_independently_with_bounded_loss_and_full_mips() {
             pixel[0]
         );
     }
-    policy.output = roblox_asset_link::texture::Output::DdsBc4 {
+    policy.output = roblox_toolchain::texture::Output::DdsBc4 {
         mipmaps: true,
         max_output_bytes: 159,
     };

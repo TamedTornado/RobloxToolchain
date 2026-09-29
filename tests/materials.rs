@@ -1,6 +1,6 @@
 use image::{Rgba, RgbaImage};
 use rbx_dom_weak::types::{Content, Variant};
-use roblox_asset_link::material::convert;
+use roblox_toolchain::material::convert;
 use serde_json::{Value, json};
 use std::{fs, process::Command};
 
@@ -33,7 +33,7 @@ fn scalar_dds_material_bundle_keeps_native_links_and_budget_failures_atomic() {
     let plan = json!({"assets":[{"id":"paint","conversion":{"kind":"material","source":"material.json"}}],"scenes":[]});
     fs::write(root.join("build.json"), plan.to_string()).unwrap();
     let output = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&root.join("build.json"), &output).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&root.join("build.json"), &output).unwrap();
     let texture = manifest
         .files
         .iter()
@@ -61,7 +61,7 @@ fn scalar_dds_material_bundle_keeps_native_links_and_budget_failures_atomic() {
     assert!(convert(&source, &root.join("bad")).is_err());
     assert!(!root.join("bad").exists());
     assert!(root.join("scalar.png").is_file());
-    let verified = roblox_asset_link::bundle_verify::verify(&output).unwrap();
+    let verified = roblox_toolchain::bundle_verify::verify(&output).unwrap();
     assert!(verified.owned_references_verified >= 3);
     let pack = manifest
         .files
@@ -80,7 +80,7 @@ fn scalar_dds_material_bundle_keeps_native_links_and_budget_failures_atomic() {
         }
     }
     fs::write(manifest_path, document.to_string()).unwrap();
-    let error = roblox_asset_link::bundle_verify::verify(&output)
+    let error = roblox_toolchain::bundle_verify::verify(&output)
         .err()
         .unwrap();
     assert!(

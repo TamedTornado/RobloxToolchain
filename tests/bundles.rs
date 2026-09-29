@@ -1,5 +1,5 @@
 use rbx_dom_weak::types::Variant;
-use roblox_asset_link::bundle::build;
+use roblox_toolchain::bundle::build;
 use serde_json::json;
 use std::{fs, path::Path};
 

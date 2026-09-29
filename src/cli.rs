@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use roblox_asset_link::{Result, asset_commands};
+use roblox_toolchain::{Result, asset_commands};
 use serde_json::{Value, json};
 use std::{path::PathBuf, process::ExitCode};
 
@@ -232,7 +232,7 @@ fn execute(cli: Cli) -> Result<Value> {
         command: Convert::Terrain { source, output },
     } = &cli.command
     {
-        let result = roblox_asset_link::terrain::convert(source, output)?;
+        let result = roblox_toolchain::terrain::convert(source, output)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":result}));
     }
     if let Command::Convert {
@@ -246,7 +246,7 @@ fn execute(cli: Cli) -> Result<Value> {
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
         return Ok(
-            json!({"ok":true,"scope":"offlineConversion","result":roblox_asset_link::animation_fbx::convert(source,output,config)?}),
+            json!({"ok":true,"scope":"offlineConversion","result":roblox_toolchain::animation_fbx::convert(source,output,config)?}),
         );
     }
     if let Command::Convert {
@@ -260,7 +260,7 @@ fn execute(cli: Cli) -> Result<Value> {
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
         return Ok(
-            json!({"ok":true,"scope":"offlineConversion","result":roblox_asset_link::skin_import::convert(source,output,&config)?}),
+            json!({"ok":true,"scope":"offlineConversion","result":roblox_toolchain::skin_import::convert(source,output,&config)?}),
         );
     }
     if let Command::Convert {
@@ -274,7 +274,7 @@ fn execute(cli: Cli) -> Result<Value> {
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
         return Ok(
-            json!({"ok":true,"scope":"offlineConversion","result":roblox_asset_link::animation_gltf::convert(source,output,config)?}),
+            json!({"ok":true,"scope":"offlineConversion","result":roblox_toolchain::animation_gltf::convert(source,output,config)?}),
         );
     }
     if let Command::Convert {
@@ -282,7 +282,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         return Ok(
-            json!({"ok":true,"scope":"offlineConversion","result":roblox_asset_link::animation::convert(source,output)?}),
+            json!({"ok":true,"scope":"offlineConversion","result":roblox_toolchain::animation::convert(source,output)?}),
         );
     }
     if let Command::Build {
@@ -290,7 +290,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         return Ok(
-            json!({"ok":true,"scope":"offlineMediaBuild","result":roblox_asset_link::media_mux::build(source,output)?}),
+            json!({"ok":true,"scope":"offlineMediaBuild","result":roblox_toolchain::media_mux::build(source,output)?}),
         );
     }
     if let Command::Build {
@@ -298,7 +298,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         return Ok(
-            json!({"ok":true,"scope":"offlineBundleBuild","result":roblox_asset_link::bundle::build(source,output)?}),
+            json!({"ok":true,"scope":"offlineBundleBuild","result":roblox_toolchain::bundle::build(source,output)?}),
         );
     }
     if let Command::Convert {
@@ -312,7 +312,7 @@ fn execute(cli: Cli) -> Result<Value> {
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
         return Ok(
-            json!({"ok":true,"scope":"offlineConversion","result":roblox_asset_link::audio::convert(source,output,&config)?}),
+            json!({"ok":true,"scope":"offlineConversion","result":roblox_toolchain::audio::convert(source,output,&config)?}),
         );
     }
     if let Command::Compile {
@@ -323,7 +323,7 @@ fn execute(cli: Cli) -> Result<Value> {
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
         return Ok(
-            json!({"ok":true,"scope":"offlineCompilation","result":roblox_asset_link::scripts::compile_file(source,output,&config)?}),
+            json!({"ok":true,"scope":"offlineCompilation","result":roblox_toolchain::scripts::compile_file(source,output,&config)?}),
         );
     }
     if let Command::Build {
@@ -331,7 +331,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         return Ok(
-            json!({"ok":true,"scope":"offlineSceneBuild","result":roblox_asset_link::scene::build(source,output)?}),
+            json!({"ok":true,"scope":"offlineSceneBuild","result":roblox_toolchain::scene::build(source,output)?}),
         );
     }
     if let Command::Convert {
@@ -344,14 +344,14 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
-        let manifest = roblox_asset_link::texture::convert(source, output, &config)?;
+        let manifest = roblox_toolchain::texture::convert(source, output, &config)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":manifest}));
     }
     if let Command::Convert {
         command: Convert::Material { source, output },
     } = &cli.command
     {
-        let manifest = roblox_asset_link::material::convert(source, output)?;
+        let manifest = roblox_toolchain::material::convert(source, output)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":manifest}));
     }
     if let Command::Convert {
@@ -368,12 +368,14 @@ fn execute(cli: Cli) -> Result<Value> {
         let collision = collision_config
             .as_ref()
             .map(|path| -> Result<_> {
-                Ok(serde_json::from_slice::<
-                    roblox_asset_link::collision::Recipe,
-                >(&std::fs::read(path)?)?)
+                Ok(
+                    serde_json::from_slice::<roblox_toolchain::collision::Recipe>(&std::fs::read(
+                        path,
+                    )?)?,
+                )
             })
             .transpose()?;
-        let manifest = roblox_asset_link::convert::convert_with_collision(
+        let manifest = roblox_toolchain::convert::convert_with_collision(
             source,
             output,
             &config,
@@ -391,7 +393,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
-        let manifest = roblox_asset_link::material_gltf::convert(source, output, &config)?;
+        let manifest = roblox_toolchain::material_gltf::convert(source, output, &config)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":manifest}));
     }
     if let Command::Convert {
@@ -404,7 +406,7 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
-        let manifest = roblox_asset_link::video::convert(source, output, &config)?;
+        let manifest = roblox_toolchain::video::convert(source, output, &config)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":manifest}));
     }
     if let Command::Convert {
@@ -417,15 +419,15 @@ fn execute(cli: Cli) -> Result<Value> {
     } = &cli.command
     {
         let config = serde_json::from_slice(&std::fs::read(config)?)?;
-        let manifest = roblox_asset_link::media_transcode::convert(source, output, &config)?;
+        let manifest = roblox_toolchain::media_transcode::convert(source, output, &config)?;
         return Ok(json!({"ok":true,"scope":"offlineConversion","result":manifest}));
     }
     if let Command::VerifyBundle { directory } = &cli.command {
-        let result = roblox_asset_link::bundle_verify::verify(directory)?;
+        let result = roblox_toolchain::bundle_verify::verify(directory)?;
         return Ok(json!({"ok":true,"scope":"offlineBundleVerification","result":result}));
     }
     if let Command::Deploy { command } = &cli.command {
-        use roblox_asset_link::cloud_deploy;
+        use roblox_toolchain::cloud_deploy;
         let (scope, result) = match command {
             Deploy::RetryUpload { args, receipt } => {
                 let config = cloud_deploy::read_config(&args.config)?;
@@ -443,7 +445,7 @@ fn execute(cli: Cli) -> Result<Value> {
                 let mapping = serde_json::from_slice(&std::fs::read(mapping)?)?;
                 (
                     "localDeploymentLinking",
-                    serde_json::to_value(roblox_asset_link::deployment::link_scene(
+                    serde_json::to_value(roblox_toolchain::deployment::link_scene(
                         directory, scene, &mapping, output,
                     )?)?,
                 )

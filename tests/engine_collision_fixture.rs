@@ -1,4 +1,4 @@
-use roblox_asset_link::{bundle, bundle_verify};
+use roblox_toolchain::{bundle, bundle_verify};
 use std::{fs, path::Path};
 
 #[test]

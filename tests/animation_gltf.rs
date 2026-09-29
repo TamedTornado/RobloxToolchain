@@ -1,4 +1,4 @@
-use roblox_asset_link::animation_gltf::{self, Config};
+use roblox_toolchain::animation_gltf::{self, Config};
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
@@ -281,7 +281,7 @@ fn source_sampling_converts_rest_space_units_hierarchy_and_slerp() {
     };
     near(child_transform.orientation.x.y, -1.);
     near(child_transform.orientation.y.x, 1.);
-    assert_eq!(bytes, roblox_asset_link::animation::encode(&clip).unwrap());
+    assert_eq!(bytes, roblox_toolchain::animation::encode(&clip).unwrap());
 }
 
 #[test]
@@ -314,8 +314,8 @@ fn glb_matches_external_gltf_and_rejects_corrupt_timestamps() {
     fs::write(&source_glb, glb).unwrap();
     let (actual, _) = animation_gltf::read(&source_glb, &config()).unwrap();
     assert_eq!(
-        roblox_asset_link::animation::encode(&actual).unwrap(),
-        roblox_asset_link::animation::encode(&expected).unwrap()
+        roblox_toolchain::animation::encode(&actual).unwrap(),
+        roblox_toolchain::animation::encode(&expected).unwrap()
     );
 
     let mut bad = fs::read(root.join("motion.bin")).unwrap();
@@ -402,7 +402,7 @@ fn gltf_animation_cli_and_bundle_match_without_external_tools() {
     let plan_path = root.join("build.json");
     fs::write(&plan_path, serde_json::to_vec(&plan).unwrap()).unwrap();
     let bundle = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&plan_path, &bundle).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&plan_path, &bundle).unwrap();
     assert_eq!(
         fs::read(output).unwrap(),
         fs::read(bundle.join(&manifest.files[0].path)).unwrap()

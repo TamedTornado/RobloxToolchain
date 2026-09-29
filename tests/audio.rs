@@ -1,4 +1,4 @@
-use roblox_asset_link::audio::{Config, convert};
+use roblox_toolchain::audio::{Config, convert};
 use std::{fs, io::Cursor};
 
 fn wav(frames: u32, channels: u16) -> Vec<u8> {

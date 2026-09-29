@@ -2,7 +2,7 @@ use rbx_dom_weak::{
     InstanceBuilder, WeakDom,
     types::{Content, ContentId},
 };
-use roblox_asset_link::{
+use roblox_toolchain::{
     bundle::{Artifact, Manifest, SceneArtifact},
     cloud_deploy,
     cloud_plan::{Config, digest},
@@ -449,7 +449,7 @@ fn read_retry_policy_and_error_redaction_are_enforced() {
     });
     let temp = tempfile::tempdir().unwrap();
     let (_, config) = fixture(temp.path(), &server.url);
-    let cloud = roblox_asset_link::cloud_http::Cloud::new(
+    let cloud = roblox_toolchain::cloud_http::Cloud::new(
         &config.api_base_url,
         &config.api_key_file,
         &config.policy,
@@ -459,12 +459,9 @@ fn read_retry_policy_and_error_redaction_are_enforced() {
     assert_eq!(calls.load(Ordering::SeqCst), 2);
 
     let errors = Server::new(|_, _| json_reply(401, json!({"message":"bad fake-key credential"})));
-    let cloud = roblox_asset_link::cloud_http::Cloud::new(
-        &errors.url,
-        &config.api_key_file,
-        &config.policy,
-    )
-    .unwrap();
+    let cloud =
+        roblox_toolchain::cloud_http::Cloud::new(&errors.url, &config.api_key_file, &config.policy)
+            .unwrap();
     let error = cloud.get("/secret").unwrap_err().to_string();
     assert!(error.contains("401"));
     assert!(error.contains("[REDACTED]"));
@@ -480,12 +477,9 @@ fn redirects_response_limits_and_key_permissions_fail_closed() {
     });
     let temp = tempfile::tempdir().unwrap();
     let (_, mut config) = fixture(temp.path(), &server.url);
-    let cloud = roblox_asset_link::cloud_http::Cloud::new(
-        &server.url,
-        &config.api_key_file,
-        &config.policy,
-    )
-    .unwrap();
+    let cloud =
+        roblox_toolchain::cloud_http::Cloud::new(&server.url, &config.api_key_file, &config.policy)
+            .unwrap();
     assert!(
         cloud
             .get("/redirect")
@@ -498,7 +492,7 @@ fn redirects_response_limits_and_key_permissions_fail_closed() {
     let big = Server::new(|_, _| json_reply(200, json!({"large":"response"})));
     config.policy.max_response_bytes = 4;
     let cloud =
-        roblox_asset_link::cloud_http::Cloud::new(&big.url, &config.api_key_file, &config.policy)
+        roblox_toolchain::cloud_http::Cloud::new(&big.url, &config.api_key_file, &config.policy)
             .unwrap();
     assert!(
         cloud
@@ -512,7 +506,7 @@ fn redirects_response_limits_and_key_permissions_fail_closed() {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&config.api_key_file, fs::Permissions::from_mode(0o644)).unwrap();
         assert!(
-            roblox_asset_link::cloud_http::Cloud::new(
+            roblox_toolchain::cloud_http::Cloud::new(
                 &big.url,
                 &config.api_key_file,
                 &config.policy

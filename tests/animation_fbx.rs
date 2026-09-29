@@ -3,7 +3,7 @@ use rbx_dom_weak::{
     WeakDom,
     types::{CFrame, Ref, Variant},
 };
-use roblox_asset_link::animation_fbx::{self, Config};
+use roblox_toolchain::animation_fbx::{self, Config};
 use std::{collections::BTreeMap, fs, path::Path};
 
 fn source() -> std::path::PathBuf {
@@ -262,7 +262,7 @@ fn fbx_cli_bundle_and_sampling_rate_are_data_driven() {
     let plan = serde_json::json!({"assets":[{"id":"motion","conversion":{"kind":"animationFbx","source":"source.fbx","config":policy}}],"scenes":[]});
     fs::write(root.join("build.json"), serde_json::to_vec(&plan).unwrap()).unwrap();
     let bundle = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&root.join("build.json"), &bundle).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&root.join("build.json"), &bundle).unwrap();
     assert_eq!(
         bytes,
         fs::read(bundle.join(&manifest.files[0].path)).unwrap()

@@ -1,4 +1,4 @@
-use roblox_asset_link::{bundle, plan_assets};
+use roblox_toolchain::{bundle, plan_assets};
 use serde_json::json;
 use std::fs;
 

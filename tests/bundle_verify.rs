@@ -1,4 +1,4 @@
-use roblox_asset_link::{bundle, bundle_verify::verify};
+use roblox_toolchain::{bundle, bundle_verify::verify};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path, process::Command};

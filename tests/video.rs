@@ -1,4 +1,4 @@
-use roblox_asset_link::video::{Config, convert};
+use roblox_toolchain::video::{Config, convert};
 use std::{fs, path::Path};
 
 fn config() -> Config {
@@ -225,7 +225,7 @@ fn video_cli_and_bundle_need_no_codec_executable_and_bind_native_video_content()
     let scene = json!({"kind":"model","roots":[{"id":"screen","class":"VideoFrame","name":"Screen","properties":{},"references":{},"children":[],"assets":{"VideoContent":{"asset":"movie","file":"video.webm"}}}]});
     fs::write(root.join("scene.json"), scene.to_string()).unwrap();
     let output = root.join("bundle");
-    let result = roblox_asset_link::bundle::build(&root.join("build.json"), &output).unwrap();
+    let result = roblox_toolchain::bundle::build(&root.join("build.json"), &output).unwrap();
     assert_eq!(
         fs::read(root.join("video.webm")).unwrap(),
         fs::read(output.join(&result.files[0].path)).unwrap()

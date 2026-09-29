@@ -1846,7 +1846,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "roblox-asset-link"
+name = "roblox-toolchain"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",

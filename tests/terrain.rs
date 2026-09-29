@@ -1,4 +1,4 @@
-use roblox_asset_link::scene;
+use roblox_toolchain::scene;
 use serde_json::json;
 use std::{collections::BTreeMap, fs};
 
@@ -31,12 +31,12 @@ fn independent_native_terrain_voxels_palette_and_water_survive_place_assembly() 
     };
     let grid_bytes: &[u8] = grid.as_ref();
     assert!(!grid_bytes.is_empty());
-    let limits = roblox_asset_link::terrain_grid::Limits {
+    let limits = roblox_toolchain::terrain_grid::Limits {
         max_chunks: 16,
         max_cells: 524288,
     };
-    let cells = roblox_asset_link::terrain_grid::decode(grid_bytes, &limits).unwrap();
-    let rebuilt = roblox_asset_link::terrain_grid::encode(&cells, &limits).unwrap();
+    let cells = roblox_toolchain::terrain_grid::decode(grid_bytes, &limits).unwrap();
+    let rebuilt = roblox_toolchain::terrain_grid::encode(&cells, &limits).unwrap();
     assert_eq!(rebuilt, grid_bytes);
     properties.insert(
         "SmoothGrid".into(),
@@ -46,9 +46,9 @@ fn independent_native_terrain_voxels_palette_and_water_survive_place_assembly() 
         panic!("expected binary physics grid");
     };
     let physics_bytes: &[u8] = physics.as_ref();
-    let limits = roblox_asset_link::terrain_physics::Limits { max_entries: 194 };
-    let decoded = roblox_asset_link::terrain_physics::decode(physics_bytes, &limits).unwrap();
-    let rebuilt = roblox_asset_link::terrain_physics::encode(&decoded, &limits).unwrap();
+    let limits = roblox_toolchain::terrain_physics::Limits { max_entries: 194 };
+    let decoded = roblox_toolchain::terrain_physics::decode(physics_bytes, &limits).unwrap();
+    let rebuilt = roblox_toolchain::terrain_physics::encode(&decoded, &limits).unwrap();
     assert_eq!(rebuilt.as_slice(), physics_bytes);
     properties.insert(
         "PhysicsGrid".into(),

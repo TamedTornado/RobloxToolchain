@@ -1,14 +1,14 @@
 use base64::Engine;
-use roblox_asset_link::convert::{Config, convert};
+use roblox_toolchain::convert::{Config, convert};
 use serde_json::json;
 use std::{fs, path::Path};
 
 fn assert_deployment_keeps_explicit_maps(
     bundle: &Path,
-    manifest: &roblox_asset_link::bundle::Manifest,
+    manifest: &roblox_toolchain::bundle::Manifest,
 ) {
     use rbx_dom_weak::types::{Content, Variant};
-    use roblox_asset_link::{bundle_verify, deployment};
+    use roblox_toolchain::{bundle_verify, deployment};
 
     let verification = bundle_verify::verify(bundle).unwrap();
     let mapping = deployment::Mapping {
@@ -95,10 +95,10 @@ fn independent_textured_glb_preserves_uvs_and_material_dependencies_through_bund
     fs::write(&source, document.to_string()).unwrap();
     let mut dds_policy = config();
     dds_policy.materials.as_mut().unwrap().outputs.color =
-        roblox_asset_link::texture::Output::DdsRgba8 {
+        roblox_toolchain::texture::Output::DdsRgba8 {
             mipmaps: true,
             max_output_bytes: 1048576,
-            mip_filter: roblox_asset_link::texture_rgba::Filter::ColorStraightAlpha,
+            mip_filter: roblox_toolchain::texture_rgba::Filter::ColorStraightAlpha,
         };
     let dds_output = temp.path().join("dds");
     let dds = convert(&source, &dds_output, &dds_policy).unwrap();
@@ -165,7 +165,7 @@ fn independent_textured_glb_preserves_uvs_and_material_dependencies_through_bund
     let plan_path = temp.path().join("build.json");
     fs::write(&plan_path, plan.to_string()).unwrap();
     let bundle = temp.path().join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&plan_path, &bundle).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&plan_path, &bundle).unwrap();
     let appearance = manifest
         .files
         .iter()
@@ -194,7 +194,7 @@ fn independent_textured_glb_preserves_uvs_and_material_dependencies_through_bund
     assert_eq!(surface.properties, material.properties);
     assert_deployment_keeps_explicit_maps(&bundle, &manifest);
     let repeat = temp.path().join("repeat");
-    roblox_asset_link::bundle::build(&plan_path, &repeat).unwrap();
+    roblox_toolchain::bundle::build(&plan_path, &repeat).unwrap();
     assert_eq!(
         fs::read(bundle.join("manifest.json")).unwrap(),
         fs::read(repeat.join("manifest.json")).unwrap()

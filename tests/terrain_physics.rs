@@ -1,4 +1,4 @@
-use roblox_asset_link::{
+use roblox_toolchain::{
     terrain_grid,
     terrain_physics::{Grid, Limits, decode, encode},
 };
@@ -64,7 +64,7 @@ fn independent_physics_grid_reencodes_exactly_and_its_fixture_coverage_matches_v
     }
     // An observed fixture relationship, not a claimed general collision cooker.
     assert_eq!(actual, expected);
-    let generated = roblox_asset_link::terrain_physics::lazy_index(&smooth, &limits).unwrap();
+    let generated = roblox_toolchain::terrain_physics::lazy_index(&smooth, &limits).unwrap();
     assert_eq!(
         generated.coordinate_groups[0]
             .iter()
@@ -95,24 +95,24 @@ fn lazy_index_covers_negative_boundaries_and_honors_entry_limits() {
         }],
     };
     let limits = Limits { max_entries: 8 };
-    let generated = roblox_asset_link::terrain_physics::lazy_index(&grid, &limits).unwrap();
+    let generated = roblox_toolchain::terrain_physics::lazy_index(&grid, &limits).unwrap();
     assert_eq!(generated.coordinate_groups[0].len(), 8);
     assert!(generated.coordinate_groups[0].contains(&[-1, -1, -1]));
     assert!(generated.coordinate_groups[0].contains(&[0, 0, 0]));
     assert!(
-        roblox_asset_link::terrain_physics::lazy_index(&grid, &Limits { max_entries: 7 }).is_err()
+        roblox_toolchain::terrain_physics::lazy_index(&grid, &Limits { max_entries: 7 }).is_err()
     );
     let mut grid = grid;
     grid.chunks[0].cells[0] = terrain_grid::Cell::default();
     assert!(
-        roblox_asset_link::terrain_physics::lazy_index(&grid, &limits)
+        roblox_toolchain::terrain_physics::lazy_index(&grid, &limits)
             .unwrap()
             .coordinate_groups[0]
             .is_empty()
     );
     grid.chunks[0].cells[0].material = 2;
     grid.chunks[0].coordinate = [i32::MIN, 0, 0];
-    assert!(roblox_asset_link::terrain_physics::lazy_index(&grid, &limits).is_err());
+    assert!(roblox_toolchain::terrain_physics::lazy_index(&grid, &limits).is_err());
 }
 
 #[test]

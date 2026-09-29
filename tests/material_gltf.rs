@@ -1,6 +1,6 @@
 use base64::Engine;
 use image::{Rgba, RgbaImage};
-use roblox_asset_link::material_gltf::{Config, convert};
+use roblox_toolchain::material_gltf::{Config, convert};
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
@@ -54,7 +54,7 @@ fn gltf_material_output_profiles_survive_bundle_linking_and_native_serialization
     let plan = json!({"assets":[{"id":"paint","conversion":{"kind":"materialGltf","source":"source.gltf","config":config}}],"scenes":[]});
     fs::write(root.join("build.json"), plan.to_string()).unwrap();
     let bundle = root.join("bundle");
-    let manifest = roblox_asset_link::bundle::build(&root.join("build.json"), &bundle).unwrap();
+    let manifest = roblox_toolchain::bundle::build(&root.join("build.json"), &bundle).unwrap();
     for map in material.maps.values() {
         let file = manifest
             .files
@@ -151,7 +151,7 @@ fn gltf_factors_bake_in_correct_color_spaces_and_bundle_links_the_result() {
     let plan = json!({"assets":[{"id":"paint","conversion":{"kind":"materialGltf","source":"source.gltf","config":config}}],"scenes":[]});
     fs::write(root.join("build.json"), plan.to_string()).unwrap();
     let bundle = root.join("bundle");
-    let built = roblox_asset_link::bundle::build(&root.join("build.json"), &bundle).unwrap();
+    let built = roblox_toolchain::bundle::build(&root.join("build.json"), &bundle).unwrap();
     assert_eq!(built.files.len(), 5);
     let native = built
         .files

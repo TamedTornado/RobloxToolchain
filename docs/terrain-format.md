@@ -249,7 +249,7 @@ prove live collision/raycast behavior, nor does it prove that omitting PhysicsGr
 entirely is equivalent. `engineVerified` remains false; offline-format acceptance
 is recorded separately in the [acceptance audit](scene-terrain-acceptance.md).
 
-[Issue 10](https://github.com/TamedTornado/RobloxAssetLink/issues/10) covers the
+[Issue 10](https://github.com/TamedTornado/RobloxToolchain/issues/10) covers the
 offline terrain conversion contract audited in that report.
 Rust voxel/heightmap encoding and CLI/bundle integration are implemented for the
 documented version-one profile, with metric dimensions, aliases and resource

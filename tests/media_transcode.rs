@@ -1,4 +1,4 @@
-use roblox_asset_link::{audio, media_transcode, video};
+use roblox_toolchain::{audio, media_transcode, video};
 use std::{fs, path::Path};
 
 fn config() -> media_transcode::Config {
@@ -117,7 +117,7 @@ fn combined_source_cli_and_bundle_are_equivalent_without_external_tools() {
     let plan = json!({"assets":[{"id":"clip","conversion":{"kind":"mediaSource","source":"source.mp4","config":config}}],"scenes":[]});
     fs::write(root.join("build.json"), plan.to_string()).unwrap();
     let bundle = root.join("bundle");
-    let result = roblox_asset_link::bundle::build(&root.join("build.json"), &bundle).unwrap();
+    let result = roblox_toolchain::bundle::build(&root.join("build.json"), &bundle).unwrap();
     assert_eq!(
         fs::read(root.join("cli.webm")).unwrap(),
         fs::read(bundle.join(&result.files[0].path)).unwrap()

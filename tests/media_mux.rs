@@ -1,4 +1,4 @@
-use roblox_asset_link::{audio, media_mux, video};
+use roblox_toolchain::{audio, media_mux, video};
 use serde_json::json;
 use std::{
     fs,
@@ -163,7 +163,7 @@ fn media_cli_and_bundle_preserve_identical_preconverted_outputs_offline() {
     let plan = json!({"assets":[{"id":"combined","conversion":{"kind":"media","source":"media.json"}}],"scenes":[]});
     fs::write(root.join("build.json"), plan.to_string()).unwrap();
     let bundle = root.join("bundle");
-    let result = roblox_asset_link::bundle::build(&root.join("build.json"), &bundle).unwrap();
+    let result = roblox_toolchain::bundle::build(&root.join("build.json"), &bundle).unwrap();
     assert_eq!(result.files.len(), 1);
     assert_eq!(
         fs::read(standalone).unwrap(),

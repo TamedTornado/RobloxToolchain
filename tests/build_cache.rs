@@ -1,5 +1,5 @@
 #![cfg(target_os = "linux")]
-use roblox_asset_link::bundle;
+use roblox_toolchain::bundle;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
@@ -116,7 +116,7 @@ fn cache_copies_are_independent_and_missing_sources_cannot_hit() {
         report(root, &source, "second")["hits"],
         json!(["one", "two"])
     );
-    roblox_asset_link::bundle_verify::verify(&root.join("second")).unwrap();
+    roblox_toolchain::bundle_verify::verify(&root.join("second")).unwrap();
     fs::remove_file(root.join("one.png")).unwrap();
     assert!(bundle::build(&source, &root.join("third")).is_err());
     assert!(!root.join("third").exists());
@@ -161,7 +161,7 @@ fn cached_skin_and_animation_restore_scene_bindings_and_follow_dependency_keys()
         report(root, &source, "second"),
         json!({"hits":["skin","motion"],"misses":[]})
     );
-    roblox_asset_link::bundle_verify::verify(&root.join("second")).unwrap();
+    roblox_toolchain::bundle_verify::verify(&root.join("second")).unwrap();
 
     plan["assets"][0]["conversion"]["config"]["name"] = json!("Changed motion");
     write(&source, &plan);
@@ -175,7 +175,7 @@ fn cached_skin_and_animation_restore_scene_bindings_and_follow_dependency_keys()
         report(root, &source, "fourth"),
         json!({"hits":[],"misses":["skin","motion"]})
     );
-    roblox_asset_link::bundle_verify::verify(&root.join("fourth")).unwrap();
+    roblox_toolchain::bundle_verify::verify(&root.join("fourth")).unwrap();
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn material_maps_are_real_cache_dependencies() {
         report(root, &source, "third"),
         json!({"hits":["two"],"misses":["material"]})
     );
-    roblox_asset_link::bundle_verify::verify(&root.join("third")).unwrap();
+    roblox_toolchain::bundle_verify::verify(&root.join("third")).unwrap();
 }
 
 #[test]
