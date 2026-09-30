@@ -636,6 +636,31 @@ fn timed_out_processing_resumes_the_operation_without_duplicate_upload() {
 }
 
 #[test]
+fn moderation_is_awaited_after_every_upload_is_submitted() {
+    // The first upload stays in review until every upload has been submitted:
+    // waiting on it one at a time would never finish.
+    let posts = Arc::new(Mutex::new(0));
+    let count = posts.clone();
+    let server = Server::new(move |r, _| {
+        if r.method == "POST" {
+            *count.lock().unwrap() += 1;
+        }
+        if r.path == "/assets/v1/assets/101" && *count.lock().unwrap() < 3 {
+            let mut reviewing = metadata("101", "Image");
+            reviewing["moderationResult"]["moderationState"] = json!("Reviewing");
+            return json_reply(200, reviewing);
+        }
+        asset_api(r).unwrap()
+    });
+    let temp = tempfile::tempdir().unwrap();
+    let (bundle, config) = fixture(temp.path(), &server.url);
+    let result =
+        cloud_deploy::execute(&bundle, &config, &temp.path().join("state"), false).unwrap();
+    assert_eq!(result["bindings"].as_array().unwrap().len(), 3);
+    assert_eq!(*posts.lock().unwrap(), 3);
+}
+
+#[test]
 fn ambiguous_publication_recovers_only_from_byte_identical_version() {
     let published = Arc::new(Mutex::new(Vec::new()));
     let bytes = published.clone();

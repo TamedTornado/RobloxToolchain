@@ -201,56 +201,140 @@ fn known_rejection(error: &(dyn std::error::Error + Send + Sync + 'static)) -> b
     })
 }
 
-fn finish_upload(store: &mut Store, cloud: &Cloud, key: &str) -> Result<String> {
+/// Where an upload stands after one step towards readiness.
+enum Step {
+    /// The upload operation hasn't finished: no asset ID yet.
+    Waiting,
+    /// The asset exists and can be linked, but moderation hasn't approved it.
+    Uploaded(String),
+    Ready(String),
+}
+
+/// Advances one receipt by at most one request.
+fn step(store: &mut Store, cloud: &Cloud, key: &str) -> Result<Step> {
+    let receipt = store.journal.uploads.get(key).ok_or("missing receipt")?;
+    match receipt.state.clone() {
+        UploadPhase::Ready { asset_id } => Ok(Step::Ready(asset_id)),
+        UploadPhase::Processing { operation } => {
+            let result = cloud.get(&operation_path(&operation)?)?;
+            match result["done"].as_bool() {
+                Some(true) => {}
+                Some(false) => return Ok(Step::Waiting),
+                None => return Err(format!("malformed operation response: {result}").into()),
+            }
+            if !result["error"].is_null() {
+                let error = format!("asset operation {operation} failed: {}", result["error"]);
+                store.journal.uploads.get_mut(key).unwrap().state = UploadPhase::Rejected {
+                    error: error.clone(),
+                };
+                store.save()?;
+                return Err(error.into());
+            }
+            validate_asset(&result["response"], &receipt.request)?;
+            let asset_id = parse_asset_id(&result["response"]["assetId"])?;
+            store.journal.uploads.get_mut(key).unwrap().state = UploadPhase::Uploaded {
+                asset_id: asset_id.clone(),
+            };
+            store.save()?;
+            Ok(Step::Uploaded(asset_id))
+        }
+        UploadPhase::Uploaded { asset_id } => {
+            let metadata = cloud.get(&format!("/assets/v1/assets/{asset_id}"))?;
+            validate_asset(&metadata, &receipt.request)?;
+            if parse_asset_id(&metadata["assetId"])? != asset_id {
+                return Err("asset metadata ID mismatch".into());
+            }
+            match metadata["moderationResult"]["moderationState"].as_str() {
+                Some("Approved" | "MODERATION_STATE_APPROVED") if metadata["state"] == "Active" => {
+                    store.journal.uploads.get_mut(key).unwrap().state = UploadPhase::Ready {
+                        asset_id: asset_id.clone(),
+                    };
+                    store.save()?;
+                    Ok(Step::Ready(asset_id))
+                }
+                Some("Rejected" | "MODERATION_STATE_REJECTED") => {
+                    Err(format!("asset {asset_id} moderation rejected: {metadata}").into())
+                }
+                Some(
+                    "Reviewing" | "MODERATION_STATE_REVIEWING" | "Approved"
+                    | "MODERATION_STATE_APPROVED",
+                ) => Ok(Step::Uploaded(asset_id)),
+                _ => Err(format!("unexpected asset readiness response: {metadata}").into()),
+            }
+        }
+        UploadPhase::Submitting => Err(format!(
+            "upload receipt {key} has unknown write outcome; use deploy reconcile-operation, do not re-upload blindly"
+        )
+        .into()),
+        UploadPhase::Rejected { error } => Err(error.into()),
+        UploadPhase::Planned => Err("upload was not submitted".into()),
+    }
+}
+
+fn timed_out(start: Instant, cloud: &Cloud, what: &str) -> Result<()> {
+    if start.elapsed().as_secs() >= cloud.policy.wait_timeout_seconds {
+        return Err(
+            format!("{what} exceeded waitTimeoutSeconds; resume with the same state").into(),
+        );
+    }
+    Ok(())
+}
+
+/// Waits for an upload's asset ID, which is all linking needs; moderation is
+/// awaited later for every upload at once (`await_ready`).
+fn await_id(store: &mut Store, cloud: &Cloud, key: &str) -> Result<String> {
     let start = Instant::now();
     loop {
-        let receipt = store.journal.uploads.get(key).ok_or("missing receipt")?;
-        match receipt.state.clone() {
-            UploadPhase::Ready {asset_id}=>return Ok(asset_id),
-            UploadPhase::Processing {operation}=>{
-                let result = cloud.get(&operation_path(&operation)?)?;
-                if result["done"].as_bool()==Some(true) {
-                    if !result["error"].is_null() {
-                        let error = format!("asset operation {operation} failed: {}",result["error"]);
-                        store.journal.uploads.get_mut(key).unwrap().state=UploadPhase::Rejected {error:error.clone()};
-                        store.save()?;
-                        return Err(error.into());
-                    }
-                    validate_asset(&result["response"],&receipt.request)?;
-                    let asset_id = parse_asset_id(&result["response"]["assetId"])?;
-                    store.journal.uploads.get_mut(key).unwrap().state=UploadPhase::Uploaded {asset_id};
-                    store.save()?;
-                    continue;
-                }
-                if result["done"].as_bool()!=Some(false) {return Err(format!("malformed operation response: {result}").into());}
+        match &store
+            .journal
+            .uploads
+            .get(key)
+            .ok_or("missing receipt")?
+            .state
+        {
+            UploadPhase::Uploaded { asset_id } | UploadPhase::Ready { asset_id } => {
+                return Ok(asset_id.clone());
             }
-            UploadPhase::Uploaded {asset_id}=>{
-                let metadata = cloud.get(&format!("/assets/v1/assets/{asset_id}"))?;
-                validate_asset(&metadata,&receipt.request)?;
-                if parse_asset_id(&metadata["assetId"])?!=asset_id {return Err("asset metadata ID mismatch".into());}
-                match metadata["moderationResult"]["moderationState"].as_str() {
-                    Some("Approved"|"MODERATION_STATE_APPROVED") if metadata["state"]=="Active"=>{
-                        store.journal.uploads.get_mut(key).unwrap().state=UploadPhase::Ready {asset_id:asset_id.clone()};
-                        store.save()?;
-                        return Ok(asset_id);
-                    }
-                    Some("Rejected"|"MODERATION_STATE_REJECTED")=>return Err(format!("asset {asset_id} moderation rejected: {metadata}").into()),
-                    Some("Reviewing"|"MODERATION_STATE_REVIEWING"|"Approved"|"MODERATION_STATE_APPROVED")=>{},
-                    _=>return Err(format!("unexpected asset readiness response: {metadata}").into()),
-                }
-            }
-            UploadPhase::Submitting=>return Err(format!("upload receipt {key} has unknown write outcome; use deploy reconcile-operation, do not re-upload blindly").into()),
-            UploadPhase::Rejected {error}=>return Err(error.into()),
-            UploadPhase::Planned=>return Err("upload was not submitted".into()),
+            _ => {}
         }
-        if start.elapsed().as_secs() >= cloud.policy.wait_timeout_seconds {
-            return Err(format!(
-                "asset wait exceeded waitTimeoutSeconds; resume with the same state (receipt {key})"
-            )
-            .into());
+        if let Step::Uploaded(asset_id) | Step::Ready(asset_id) = step(store, cloud, key)? {
+            return Ok(asset_id);
         }
+        timed_out(start, cloud, &format!("asset upload (receipt {key})"))?;
         cloud.pause();
     }
+}
+
+/// Waits until every listed upload is approved and active, polling them together.
+/// The wait times out only when none has become ready for waitTimeoutSeconds.
+fn await_ready(store: &mut Store, cloud: &Cloud, keys: &[String]) -> Result<()> {
+    let mut pending: Vec<&String> = keys.iter().collect();
+    let mut progress = Instant::now();
+    loop {
+        let mut waiting = Vec::new();
+        for key in pending {
+            match step(store, cloud, key)? {
+                Step::Ready(_) => progress = Instant::now(),
+                Step::Waiting | Step::Uploaded(_) => waiting.push(key),
+            }
+        }
+        if waiting.is_empty() {
+            return Ok(());
+        }
+        pending = waiting;
+        timed_out(
+            progress,
+            cloud,
+            &format!("moderation wait ({} assets pending)", pending.len()),
+        )?;
+        cloud.pause();
+    }
+}
+
+fn finish_upload(store: &mut Store, cloud: &Cloud, key: &str) -> Result<String> {
+    let id = await_id(store, cloud, key)?;
+    await_ready(store, cloud, &[key.to_owned()])?;
+    Ok(id)
 }
 
 fn upload(
@@ -306,7 +390,7 @@ fn upload(
         store.journal.uploads.get_mut(&key).unwrap().state = UploadPhase::Processing { operation };
         store.save()?;
     }
-    let id = finish_upload(store, cloud, &key)?;
+    let id = await_id(store, cloud, &key)?;
     Ok((id, key))
 }
 
@@ -342,6 +426,7 @@ pub fn execute(directory: &Path, config: &Config, state: &Path, publish: bool) -
     let cloud = Cloud::new(&config.api_base_url, &config.api_key_file, &config.policy)?;
     let mut ids = HashMap::new();
     let mut bindings = Vec::new();
+    let mut receipts = Vec::new();
     for input in &prepared.inputs {
         let payload = cloud_plan::payload(input, &ids)?;
         if payload.len() as u64 > config.policy.max_upload_bytes {
@@ -350,7 +435,10 @@ pub fn execute(directory: &Path, config: &Config, state: &Path, publish: bool) -
         let (id, receipt) = upload(&mut store, &cloud, config, input, payload)?;
         ids.insert(input.uri.clone(), format!("rbxassetid://{id}"));
         bindings.push(json!({"asset":input.upload.asset,"file":input.upload.file,"sourceArtifactSha256":input.source_sha256,"remoteId":id,"receipt":receipt}));
+        receipts.push(receipt);
     }
+    // Linking needed only the IDs; the place goes out once everything is approved.
+    await_ready(&mut store, &cloud, &receipts)?;
     let (linked, _) = deployment::rewrite_native(&prepared.scene, &ids)?;
     if linked.len() as u64 > config.policy.max_upload_bytes {
         return Err("linked place exceeds maxUploadBytes".into());
