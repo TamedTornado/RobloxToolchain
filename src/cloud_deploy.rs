@@ -305,18 +305,37 @@ fn await_id(store: &mut Store, cloud: &Cloud, key: &str) -> Result<String> {
     }
 }
 
-/// Waits until every listed upload is approved and active, polling them together.
-/// The wait times out only when none has become ready for waitTimeoutSeconds.
+/// Whether a request failed only because the API is rate limiting us.
+fn rate_limited(error: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    error
+        .downcast_ref::<HttpFailure>()
+        .is_some_and(|e| e.status == Some(429))
+}
+
+/// Waits until every listed upload is approved and active, polling them in turn
+/// with a pause between requests, and backing off while rate limited. The wait
+/// times out only when none has become ready for waitTimeoutSeconds.
 fn await_ready(store: &mut Store, cloud: &Cloud, keys: &[String]) -> Result<()> {
     let mut pending: Vec<&String> = keys.iter().collect();
     let mut progress = Instant::now();
+    let mut limited = 0;
     loop {
         let mut waiting = Vec::new();
         for key in pending {
-            match step(store, cloud, key)? {
-                Step::Ready(_) => progress = Instant::now(),
-                Step::Waiting | Step::Uploaded(_) => waiting.push(key),
+            match step(store, cloud, key) {
+                Ok(Step::Ready(_)) => {
+                    progress = Instant::now();
+                    limited = 0;
+                }
+                Ok(Step::Waiting | Step::Uploaded(_)) => waiting.push(key),
+                Err(error) if rate_limited(error.as_ref()) => {
+                    waiting.push(key);
+                    cloud.back_off(limited);
+                    limited += 1;
+                }
+                Err(error) => return Err(error),
             }
+            cloud.pause();
         }
         if waiting.is_empty() {
             return Ok(());
@@ -327,7 +346,6 @@ fn await_ready(store: &mut Store, cloud: &Cloud, keys: &[String]) -> Result<()> 
             cloud,
             &format!("moderation wait ({} assets pending)", pending.len()),
         )?;
-        cloud.pause();
     }
 }
 

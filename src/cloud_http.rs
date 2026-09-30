@@ -161,7 +161,7 @@ impl Cloud {
                     if !retry || attempt + 1 == self.policy.read_attempts {
                         return Err(error);
                     }
-                    self.pause();
+                    self.back_off(attempt);
                 }
             }
         }
@@ -219,5 +219,16 @@ impl Cloud {
 
     pub fn pause(&self) {
         thread::sleep(Duration::from_millis(self.policy.poll_interval_millis));
+    }
+
+    /// Waits longer after each failed attempt: the poll interval doubled per
+    /// attempt, at most a minute.
+    pub fn back_off(&self, attempt: u32) {
+        let millis = self
+            .policy
+            .poll_interval_millis
+            .saturating_mul(1 << attempt.min(16))
+            .min(60_000);
+        thread::sleep(Duration::from_millis(millis));
     }
 }

@@ -661,6 +661,30 @@ fn moderation_is_awaited_after_every_upload_is_submitted() {
 }
 
 #[test]
+fn rate_limited_moderation_polls_back_off_instead_of_failing() {
+    // Every readiness check is refused a few times over before it answers.
+    let refusals = Arc::new(Mutex::new(0));
+    let count = refusals.clone();
+    let server = Server::new(move |r, _| {
+        if r.path.starts_with("/assets/v1/assets/") && r.method == "GET" {
+            let mut refused = count.lock().unwrap();
+            if *refused < 8 {
+                *refused += 1;
+                return json_reply(429, json!({"errors":[]}));
+            }
+        }
+        asset_api(r).unwrap()
+    });
+    let temp = tempfile::tempdir().unwrap();
+    let (bundle, mut config) = fixture(temp.path(), &server.url);
+    config.policy.wait_timeout_seconds = 30;
+    let result =
+        cloud_deploy::execute(&bundle, &config, &temp.path().join("state"), false).unwrap();
+    assert_eq!(result["bindings"].as_array().unwrap().len(), 3);
+    assert_eq!(*refusals.lock().unwrap(), 8);
+}
+
+#[test]
 fn ambiguous_publication_recovers_only_from_byte_identical_version() {
     let published = Arc::new(Mutex::new(Vec::new()));
     let bytes = published.clone();
