@@ -288,6 +288,9 @@ fn real_cli_uploads_in_dependency_order_reuses_receipts_and_verifies_publication
                 return json_reply(200, metadata(id, kind));
             }
         }
+        if let Some(reply) = grant_api(r) {
+            return reply;
+        }
         if r.method == "POST" && r.path == "/universes/v1/7/places/8/versions?versionType=Published"
         {
             *bytes.lock().unwrap() = r.body.clone();
@@ -325,6 +328,11 @@ fn real_cli_uploads_in_dependency_order_reuses_receipts_and_verifies_publication
     }
     let requests = server.requests.lock().unwrap();
     assert_eq!(requests.iter().filter(|r| r.method == "POST").count(), 4);
+    // Every publish grants the experience use of all three assets.
+    let grants: Vec<&Request> = requests.iter().filter(|r| r.method == "PATCH").collect();
+    assert_eq!(grants.len(), 2);
+    let granted: Value = serde_json::from_slice(&grants[0].body).unwrap();
+    assert_eq!(granted["requests"].as_array().unwrap().len(), 3);
     assert_eq!(fs::read(bundle.join("manifest.json")).unwrap(), before);
     assert!(
         !fs::read_to_string(temp.path().join("state/receipts.json"))
@@ -577,7 +585,31 @@ fn state_lock_and_bundle_boundary_prevent_concurrent_or_in_place_mutation() {
     assert!(server.requests.lock().unwrap().is_empty());
 }
 
+/// The asset-permissions API: grants the fixture's universe use of every asset.
+fn grant_api(r: &Request) -> Option<Reply> {
+    if r.method != "PATCH" || r.path != "/asset-permissions-api/v1/assets/permissions" {
+        return None;
+    }
+    let body: Value = serde_json::from_slice(&r.body).unwrap();
+    assert_eq!(body["subjectType"], "Universe");
+    assert_eq!(body["subjectId"], "7");
+    assert_eq!(body["action"], "Use");
+    let ids: Vec<Value> = body["requests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|request| request["assetId"].clone())
+        .collect();
+    Some(json_reply(
+        200,
+        json!({"successAssetIds": ids, "errors": []}),
+    ))
+}
+
 fn asset_api(r: &Request) -> Option<Reply> {
+    if let Some(reply) = grant_api(r) {
+        return Some(reply);
+    }
     if r.method == "POST" && r.path == "/assets/v1/assets" {
         let (request, _) = multipart(r);
         return Some(json_reply(

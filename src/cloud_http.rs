@@ -185,6 +185,31 @@ impl Cloud {
         Ok(serde_json::from_slice(&bytes)?)
     }
 
+    /// Grants an experience permission to use assets (the asset-permissions API).
+    /// Without it a live game can be refused its own creator's uploads, even
+    /// though Studio, signed in as the creator, loads them. Returns the response.
+    pub fn grant_use(&self, universe: &str, asset_ids: &[String]) -> Result<Value> {
+        let mut requests = Vec::new();
+        for id in asset_ids {
+            requests.push(serde_json::json!({"assetId": id.parse::<u64>()?}));
+        }
+        let body = serde_json::json!({
+            "subjectType": "Universe",
+            "subjectId": universe,
+            "action": "Use",
+            "requests": requests,
+        });
+        let bytes = self.response(
+            self.client
+                .patch(self.url("/asset-permissions-api/v1/assets/permissions")?)
+                .header("x-api-key", self.key.clone())
+                .header("Content-Type", "application/json")
+                .body(serde_json::to_vec(&body)?)
+                .send(),
+        )?;
+        Ok(serde_json::from_slice(&bytes)?)
+    }
+
     pub fn publish(&self, universe: &str, place: &str, bytes: Vec<u8>) -> Result<Value> {
         let path =
             format!("/universes/v1/{universe}/places/{place}/versions?versionType=Published");

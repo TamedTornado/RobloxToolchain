@@ -31,9 +31,18 @@ tilde expansion is not performed. On Unix it must be a regular owner-only file
 (for example `chmod 600`). Keys never appear in command arguments or receipts.
 
 The API key needs asset read/write for the selected creator, place publishing for
-the selected universe, and asset delivery access for exact-version download
-verification. An explicit destination is required; no experience is created or
-guessed, and no account permissions are changed by the CLI.
+the selected universe, asset-permissions write, and asset delivery access for
+exact-version download verification. An explicit destination is required; no
+experience is created or guessed.
+
+Before publishing, the CLI grants the destination universe **Use** permission on
+every uploaded asset (the asset-permissions API, in batches; idempotent, so it
+runs on every publish). Without it a live game server and its clients were refused
+the creator's own freshly uploaded meshes, images and sounds (`Could not fetch`
+from `assetdelivery.roblox.com/v1/asset`) even though Studio, signed in as the
+creator, loaded them. Found on 2026-09-30, the first live session of the
+Sweatshop experience; granting use fixed it without republishing. No other
+account permissions are changed.
 
 Each upload selects an exact manifest `asset`/`file` and explicitly declares its
 type, display name and description. Supported deployment types are Mesh (native

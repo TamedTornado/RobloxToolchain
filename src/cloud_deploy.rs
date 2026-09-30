@@ -412,6 +412,29 @@ fn upload(
     Ok((id, key))
 }
 
+/// How many assets one permission request covers.
+const GRANT_BATCH: usize = 20;
+
+/// Lets the destination experience use every uploaded asset. Granting is
+/// idempotent, so it runs on every publish; any asset refused fails the deploy.
+fn grant_use(cloud: &Cloud, universe: &str, bindings: &[Value]) -> Result<()> {
+    let mut ids: Vec<String> = bindings
+        .iter()
+        .filter_map(|binding| binding["remoteId"].as_str().map(str::to_owned))
+        .collect();
+    ids.sort();
+    ids.dedup();
+    for batch in ids.chunks(GRANT_BATCH) {
+        let result = cloud.grant_use(universe, batch)?;
+        let granted = result["successAssetIds"].as_array().map_or(0, Vec::len);
+        let errors = result["errors"].as_array().map_or(0, Vec::len);
+        if granted != batch.len() || errors > 0 {
+            return Err(format!("experience was not granted use of every asset: {result}").into());
+        }
+    }
+    Ok(())
+}
+
 pub fn read_config(path: &Path) -> Result<Config> {
     let mut config: Config = serde_json::from_slice(&fs::read(path)?)?;
     if config.api_key_file.is_relative() {
@@ -457,6 +480,9 @@ pub fn execute(directory: &Path, config: &Config, state: &Path, publish: bool) -
     }
     // Linking needed only the IDs; the place goes out once everything is approved.
     await_ready(&mut store, &cloud, &receipts)?;
+    if publish {
+        grant_use(&cloud, &config.universe_id, &bindings)?;
+    }
     let (linked, _) = deployment::rewrite_native(&prepared.scene, &ids)?;
     if linked.len() as u64 > config.policy.max_upload_bytes {
         return Err("linked place exceeds maxUploadBytes".into());
